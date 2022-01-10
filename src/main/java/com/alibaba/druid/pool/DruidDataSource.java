@@ -126,15 +126,15 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
     private int                              poolingPeak               = 0;
     private long                             poolingPeakTime           = 0;
     // store
-    private volatile DruidConnectionHolder[] connections;
+    public volatile DruidConnectionHolder[] connections;
     private int                              poolingCount              = 0;
     private int                              activeCount               = 0;
     private volatile long                    discardCount              = 0;
     private int                              notEmptyWaitThreadCount   = 0;
     private int                              notEmptyWaitThreadPeak    = 0;
     //
-    private DruidConnectionHolder[]          evictConnections;
-    private DruidConnectionHolder[]          keepAliveConnections;
+    public DruidConnectionHolder[]          evictConnections;
+    public DruidConnectionHolder[]          keepAliveConnections;
 
     // threads
     private volatile ScheduledFuture<?>      destroySchedulerFuture;
@@ -799,12 +799,17 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
     }
 
     public void init() throws SQLException {
+
+        System.out.println("线程[" + Thread.currentThread().getName() + "]执行线程池init方法");
+
+        // 保证只初始化一次
         if (inited) {
             return;
         }
 
         // bug fixed for dead lock, for issue #2980
-        DruidDriver.getInstance();
+        DruidDriver instance = DruidDriver.getInstance();
+
 
         final ReentrantLock lock = this.lock;
         try {
@@ -918,10 +923,12 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 }
             } else if (!asyncInit) {
                 // init connections
+                // 初始化 initialSize 个连接
                 while (poolingCount < initialSize) {
                     try {
                         PhysicalConnectionInfo pyConnectInfo = createPhysicalConnection();
                         DruidConnectionHolder holder = new DruidConnectionHolder(this, pyConnectInfo);
+                        System.out.println("线程["+Thread.currentThread().getName()+"]将新连接(@" + Integer.toHexString(pyConnectInfo.getPhysicalConnection().hashCode()) + ")放入到连接池" + poolingCount + "号位置");
                         connections[poolingCount++] = holder;
                     } catch (SQLException ex) {
                         LOG.error("init datasource error, url: " + this.getUrl(), ex);
@@ -941,6 +948,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             }
 
             createAndLogThread();
+            //
             createAndStartCreatorThread();
             createAndStartDestroyThread();
 
@@ -1081,6 +1089,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
 
         String threadName = "Druid-ConnectionPool-Destroy-" + System.identityHashCode(this);
         destroyConnectionThread = new DestroyConnectionThread(threadName);
+
         destroyConnectionThread.start();
     }
 
@@ -1380,6 +1389,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
     }
 
     public DruidPooledConnection getConnection(long maxWaitMillis) throws SQLException {
+
         init();
 
         if (filters.size() > 0) {
@@ -1406,6 +1416,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             // handle notFullTimeoutRetry
             DruidPooledConnection poolableConnection;
             try {
+                // 从池中获取一条连接
                 poolableConnection = getConnectionInternal(maxWaitMillis);
             } catch (GetConnectionTimeoutException ex) {
                 if (notFullTimeoutRetryCnt <= this.notFullTimeoutRetryCount && !isFull()) {
@@ -1669,6 +1680,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 if (maxWait > 0) {
                     holder = pollLast(nanos);
                 } else {
+                    //
                     holder = takeLast();
                 }
 
@@ -1920,6 +1932,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 return;
             }
 
+            // druid是感知不到真实物理连接是否真的关闭
             if (physicalConnection.isClosed()) {
                 lock.lock();
                 try {
@@ -1971,6 +1984,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 }
             }
 
+            // 加锁
             lock.lock();
             try {
                 if (holder.active) {
@@ -1979,6 +1993,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 }
                 closeCount++;
 
+                //
                 result = putLast(holder, currentTimeMillis);
                 recycleCount++;
             } finally {
@@ -2487,15 +2502,19 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             return false;
         }
 
-        return put(holder, physicalConnectionInfo.createTaskId);
+        // 拿到锁, 向后添加
+        return put(holder, physicalConnectionInfo.createTaskId, physicalConnectionInfo);
     }
 
-    private boolean put(DruidConnectionHolder holder, long createTaskId) {
+    private boolean put(DruidConnectionHolder holder, long createTaskId, PhysicalConnectionInfo physicalConnectionInfo) {
+
         lock.lock();
         try {
             if (poolingCount >= maxActive) {
                 return false;
             }
+            // 向后添加
+            System.out.println("线程["+Thread.currentThread().getName()+"]将新连接(@" + Integer.toHexString(physicalConnectionInfo.getPhysicalConnection().hashCode()) + ")放入到连接池" + poolingCount + "号位置");
             connections[poolingCount] = holder;
             incrementPoolingCount();
 
@@ -2715,6 +2734,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
         }
 
         public void run() {
+            System.out.println("线程[" + Thread.currentThread().getName() + "]执行run方法(无限循环)");
             initedLatch.countDown();
 
             long lastDiscardCount = 0;
@@ -2776,7 +2796,9 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 PhysicalConnectionInfo connection = null;
 
                 try {
+                    // 创建一条物理连接
                     connection = createPhysicalConnection();
+
                 } catch (SQLException e) {
                     LOG.error("create connection SQLException, url: " + jdbcUrl + ", errorCode " + e.getErrorCode()
                               + ", state " + e.getSQLState(), e);
@@ -2818,6 +2840,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                     continue;
                 }
 
+                // 新连接向后添加
                 boolean result = put(connection);
                 if (!result) {
                     JdbcUtils.close(connection.getPhysicalConnection());
@@ -2837,7 +2860,9 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
         }
 
         public void run() {
+            System.out.println("线程[" + Thread.currentThread().getName() + "]执行run方法(无限循环)");
             initedLatch.countDown();
+
 
             for (;;) {
                 // 从前面开始删除
@@ -2856,6 +2881,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                         break;
                     }
 
+                    // 执行删除任务
                     destroyTask.run();
                 } catch (InterruptedException e) {
                     break;
@@ -2872,6 +2898,8 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
 
         @Override
         public void run() {
+
+            // shrink = 使缩小
             shrink(true, keepAlive);
 
             if (isRemoveAbandoned()) {
@@ -3060,12 +3088,17 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 return;
             }
 
+            // 至少要让连接池存在minIdle个连接, 需要回收checkCount个连接
             final int checkCount = poolingCount - minIdle;
             final long currentTimeMillis = System.currentTimeMillis();
+            // 从前向后遍历连接池
             for (int i = 0; i < poolingCount; ++i) {
                 DruidConnectionHolder connection = connections[i];
 
-                if ((onFatalError || fatalErrorIncrement > 0) && (lastFatalErrorTimeMillis > connection.connectTimeMillis))  {
+                if ( (onFatalError || fatalErrorIncrement > 0)
+                        &&
+                        (lastFatalErrorTimeMillis > connection.connectTimeMillis)
+                )  {
                     keepAliveConnections[keepAliveCount++] = connection;
                     continue;
                 }
@@ -3128,6 +3161,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             for (int i = 0; i < evictCount; ++i) {
                 DruidConnectionHolder item = evictConnections[i];
                 Connection connection = item.getConnection();
+
                 JdbcUtils.close(connection);
                 destroyCountUpdater.incrementAndGet(this);
             }
@@ -3155,7 +3189,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 boolean discard = !validate;
                 if (validate) {
                     holer.lastKeepTimeMillis = System.currentTimeMillis();
-                    boolean putOk = put(holer, 0L);
+                    boolean putOk = put(holer, 0L, null);
                     if (!putOk) {
                         discard = true;
                     }

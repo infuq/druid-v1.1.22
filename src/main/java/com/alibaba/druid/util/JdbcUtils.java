@@ -91,6 +91,8 @@ public final class JdbcUtils implements JdbcConstants {
                 return;
             }
 
+            System.out.println("线程["+Thread.currentThread().getName()+"]正在关闭连接(@"+Integer.toHexString(x.hashCode())+")");
+
             x.close();
         } catch (Exception e) {
             LOG.debug("close connection error", e);

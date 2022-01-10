@@ -1648,6 +1648,8 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
 
         createCountUpdater.incrementAndGet(this);
 
+        System.out.println("线程["+Thread.currentThread().getName()+"]创建一条连接(@" + Integer.toHexString(conn.hashCode()) + ")");
+
         return conn;
     }
 
@@ -1707,7 +1709,9 @@ public abstract class DruidAbstractDataSource extends WrapperAdapter implements 
         createStartNanosUpdater.set(this, connectStartNanos);
         creatingCountUpdater.incrementAndGet(this);
         try {
+            // 创建物理连接
             conn = createPhysicalConnection(url, physicalConnectProperties);
+
             connectedNanos = System.nanoTime();
 
             if (conn == null) {

@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.alibaba</groupId>
 	<artifactId>druid</artifactId>
-	<version>1.1.22</version>
+	<version>1.1.22-infuq-SNAPSHOT</version>
 
 
 	<packaging>jar</packaging>
@@ -679,6 +679,7 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!--
         <dependency>
             <groupId>com.sun</groupId>
             <artifactId>tools</artifactId>
@@ -694,6 +695,14 @@
             <scope>system</scope>
             <systemPath>${project.basedir}/lib/openjdk-1.8-jconsole.jar</systemPath>
         </dependency>
+        -->
+
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.27</version>
+		</dependency>
+
 
     </dependencies>
 </project>
