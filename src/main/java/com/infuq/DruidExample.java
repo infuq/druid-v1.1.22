@@ -13,10 +13,10 @@ public class DruidExample {
 
         DruidDataSource dataSource = new DruidDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        dataSource.setUrl("jdbc:mysql://localhost:3306/test_0?characterEncoding=utf8&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true");
+        dataSource.setUrl("jdbc:mysql://localhost:3306/db0?characterEncoding=utf8&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true");
         dataSource.setUsername("root");
         dataSource.setPassword("9527");
-//        dataSource.setInitialSize(3);
+        dataSource.setInitialSize(3);
         dataSource.setMaxActive(16);
 
         // 手动初始化连接池

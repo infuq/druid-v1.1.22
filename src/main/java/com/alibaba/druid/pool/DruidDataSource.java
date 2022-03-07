@@ -800,12 +800,12 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
 
     public void init() throws SQLException {
 
-        System.out.println("线程[" + Thread.currentThread().getName() + "]执行线程池init方法");
-
         // 保证只初始化一次
         if (inited) {
             return;
         }
+
+        System.out.println("线程[" + Thread.currentThread().getName() + "]执行线程池init方法");
 
         // bug fixed for dead lock, for issue #2980
         DruidDriver instance = DruidDriver.getInstance();
@@ -912,7 +912,9 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             dataSourceStat.setResetStatEnable(this.resetStatEnable);
 
             connections = new DruidConnectionHolder[maxActive];
+            // 存放需要抛弃的连接
             evictConnections = new DruidConnectionHolder[maxActive];
+            // 存放需要活性检测的连接
             keepAliveConnections = new DruidConnectionHolder[maxActive];
 
             SQLException connectError = null;
@@ -1418,6 +1420,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
             try {
                 // 从池中获取一条连接
                 poolableConnection = getConnectionInternal(maxWaitMillis);
+
             } catch (GetConnectionTimeoutException ex) {
                 if (notFullTimeoutRetryCnt <= this.notFullTimeoutRetryCount && !isFull()) {
                     notFullTimeoutRetryCnt++;
@@ -1479,7 +1482,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                             }
 
                             discardConnection(poolableConnection.holder);
-                             continue;
+                            continue;
                         }
                     }
                 }
@@ -1680,7 +1683,7 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 if (maxWait > 0) {
                     holder = pollLast(nanos);
                 } else {
-                    //
+                    // 获取连接
                     holder = takeLast();
                 }
 
