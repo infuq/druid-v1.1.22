@@ -3073,6 +3073,18 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
         shrink(checkTime, keepAlive);
     }
 
+    /*
+     *
+     *  |<-- checkCount -->|<-- minIdle -->|
+     *  +------------------+---------------+
+     *
+     *  1.空闲时长超过 maxEvictableIdleTimeMillis 的连接一定被回收.
+     *  2.checkCount范围内, 空闲时长超过 minEvictableIdleTimeMillis 的连接一定被回收
+     *  3.一般情况 keepAliveBetweenTimeMillis < minEvictableIdleTimeMillis
+     *    即便没有被回收的连接, 如果空闲时长超过 keepAliveBetweenTimeMillis, 则进行活性检测.
+     *
+     *
+     */
     public void shrink(boolean checkTime, boolean keepAlive) {
         try {
             lock.lockInterruptibly();
@@ -3107,9 +3119,11 @@ public class DruidDataSource extends DruidAbstractDataSource implements DruidDat
                 }
 
                 if (checkTime) {
+                    // phyTimeoutMillis 默认值 -1
                     if (phyTimeoutMillis > 0) {
                         long phyConnectTimeMillis = currentTimeMillis - connection.connectTimeMillis;
                         if (phyConnectTimeMillis > phyTimeoutMillis) {
+                            // 待 close 的连接
                             evictConnections[evictCount++] = connection;
                             continue;
                         }
