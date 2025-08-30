@@ -13,9 +13,9 @@ public class DruidExample {
 
         DruidDataSource dataSource = new DruidDataSource();
         dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        dataSource.setUrl("jdbc:mysql://localhost:3306/db0?characterEncoding=utf8&useSSL=false&serverTimezone=UTC&rewriteBatchedStatements=true");
-        dataSource.setUsername("root");
-        dataSource.setPassword("9527");
+        dataSource.setUrl("jdbc:mysql://rm-bp1349lz8ic76gru50o.mysql.rds.aliyuncs.com:3306/wisp_test?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowMultiQueries=true");
+        dataSource.setUsername("bd_test_user");
+        dataSource.setPassword("nhpG4N5VA3Sz");
         dataSource.setInitialSize(3);
         dataSource.setMaxActive(16);
 
